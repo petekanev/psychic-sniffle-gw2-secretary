@@ -1,0 +1,19 @@
+{
+  "name": "gw2-secretary-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "scheduler": "node scheduler.js"
+  },
+  "author": "Peter Kanev",
+  "license": "ISC",
+  "dependencies": {
+    "dayjs": "^1.10.4",
+    "discord.js": "^12.5.1",
+    "lodash": "^4.17.21",
+    "node-schedule": "^2.0.0",
+    "pluralize": "^8.0.0"
+  }
+}
