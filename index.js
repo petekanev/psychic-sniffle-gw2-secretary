@@ -16,8 +16,9 @@ client.on('ready', () => {
     const servers = client.guilds.cache.array();
 
     _.each(servers, s => console.log(s.name));
-});
 
+    client.user.setActivity('the planners...', { type: 'WATCHING' });
+});
 
 const installCommandRegex = /<@*\$*\!*[0-9]+>\s+install/i;
 

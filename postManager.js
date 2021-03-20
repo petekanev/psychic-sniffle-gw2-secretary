@@ -77,6 +77,21 @@ const sendPost = async (channel) => {
     }
 };
 
+const getLastMessageFromChannel = async (channel, query = {}) => {
+    const messages = await channel.messages.fetch({ limit: 100, ...query });
+    const mainPostMessage = _.last(messages.array());
+
+    if (mainPostMessage) {
+        const lastMessage = await getLastMessageFromChannel(channel, { before: mainPostMessage.id });
+
+        if (lastMessage) {
+            return lastMessage;
+        }
+    }
+
+    return mainPostMessage;
+};
+
 const getAggregatedPostsInfo = async (guild) => {
     const guildChannels = guild.channels.cache;
     const plannerChannels = _.filter(
@@ -91,38 +106,39 @@ const getAggregatedPostsInfo = async (guild) => {
     const nonEmptyPlannerChannels = _.filter(plannerChannels, (channel) => !!channel.lastMessageID);
 
     const firstChannelMessages = await batchPromiseAll(nonEmptyPlannerChannels, async (c) => {
-        const messages = await c.messages.fetch({ limit: 100 });
-        const mainPostMessage = _.last(messages.array());
-
+        const mainPostMessage = await getLastMessageFromChannel(c);
         return mainPostMessage;
     }, 5, 1000);
 
     const nonEmptyMainPostMessages = _.compact(firstChannelMessages);
 
-    const whenLineRegex = /(?:[*_~]*)(?:when)(?:[:\- *_~])+(?<time>.+)$/i;
+    const whenLineRegex = /^(?:[*_~]*)(?:when)(?:[:\- *_~])+(?<time>.+)$/i;
 
-    const mainPostsInfo = _.map(nonEmptyMainPostMessages, (message) => {
-        const contentLines = message.content.split('\n');
+    const mainPostsInfo = _(nonEmptyMainPostMessages)
+        .sortBy(m => m.channel.position)
+        .map((message) => {
+            const contentLines = message.content.split('\n');
 
-        const dateTimeLine = _.find(contentLines, (line) =>
-            whenLineRegex.test(line)
-        );
+            const dateTimeLine = _.find(contentLines, (line) =>
+                whenLineRegex.test(line)
+            );
 
-        const dateTime = dateTimeLine &&
-            trimMarkdownFormatting(_.get(dateTimeLine.match(whenLineRegex), 'groups.time'));
-        const title = _.first(contentLines);
-        const commander = message.author.toString();
-        const channel = message.channel.toString();
-        const relativeCreatedAt = message.createdAt ? dayjs(message.createdAt).fromNow() : '';
+            const dateTime = dateTimeLine &&
+                trimMarkdownFormatting(_.get(dateTimeLine.match(whenLineRegex), 'groups.time'));
+            const title = _.first(contentLines);
+            const commander = message.author.toString();
+            const channel = message.channel.toString();
+            const relativeCreatedAt = message.createdAt ? dayjs(message.createdAt).fromNow() : '';
 
-        return {
-            title,
-            when: dateTime,
-            relativeCreatedAt,
-            commander,
-            channel
-        };
-    });
+            return {
+                title,
+                when: dateTime,
+                relativeCreatedAt,
+                commander,
+                channel
+            };
+        })
+        .value();
 
     return mainPostsInfo;
 };
