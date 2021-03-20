@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "setup": "cp data/db-template.json data/db.json",
     "start": "node index.js",
     "scheduler": "node scheduler.js"
   },

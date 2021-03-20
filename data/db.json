@@ -1,9 +1,0 @@
-{
-  "installations": {
-    "821474263549739053_821518723772448788": {
-      "guild": { "id": "821474263549739053", "name": "Bot Dev Server" },
-      "channel": { "id": "821518723772448788", "name": "bounty-board" },
-      "enabled": true
-    }
-  }
-}
