@@ -16,10 +16,9 @@ dayjs.extend(relativeTime);
 
 const { batchPromiseAll } = require('./utils');
 
-const DATETIME_FORMAT = 'ddd, MMM D, YYYY HH:mm'
-const SEPARATOR = '---';
+const DATETIME_FORMAT = 'ddd, MMM D, YYYY HH:mm';
 
-const getExistingMasterPost = async (channel) => {
+const getExistingMasterPost = async (channel, masterPostDeterminer = '') => {
     const messages = await channel.messages.fetch();
 
     const client = channel.client;
@@ -27,7 +26,7 @@ const getExistingMasterPost = async (channel) => {
         messages.array(),
         (m) =>
             m.author.id.toString() === client.user.id.toString() &&
-            !_.isEmpty(m.embeds)
+            (!_.isEmpty(m.embeds) || (masterPostDeterminer && m.content.includes(masterPostDeterminer)))
     );
 
     return masterPost;
@@ -36,44 +35,42 @@ const getExistingMasterPost = async (channel) => {
 const sendPost = async (channel) => {
     const activitiesInfo = await getAggregatedPostsInfo(channel.guild);
 
+    const header = '**__Bounty board__**';
     const description =
-        'Check out all ongoing raids and activities organized by our fine commanders here! :point_down::point_down::point_down:';
+        '*Check out all ongoing raids and activities organized by our fine commanders here!* :point_down:';
     const emptyDescription =
-        'Uh oh, looks like there are no planned raids at this time. Check back later!';
+        '*Uh oh, looks like there are no planned raids at this time. Check back later!*';
+    const postDescription = _.some(activitiesInfo) ? description : emptyDescription;
 
-    const embed = new Discord.MessageEmbed()
-        .setColor('#0099ff')
-        .setTitle(
-            `__Bounty board__ - ${activitiesInfo.length} ${pluralize(
-                'activity',
-                activitiesInfo.length
-            )}`
-        )
-        .setDescription(_.some(activitiesInfo) ? description : emptyDescription)
-        .setFooter(
-            `Last updated • ${dayjs
-                .tz(dayjs(), 'Europe/Paris')
-                .format(DATETIME_FORMAT)} CET/CEST`
-        );
+    const postFooterPrefix = 'Last updated •';
+    const postFooter = `*${postFooterPrefix} ${dayjs.tz(dayjs(), 'Europe/Paris').format(DATETIME_FORMAT)} CET/CEST*`;
+
+    const messageContentArr = [
+        `${header} - **${activitiesInfo.length} ${pluralize('activity', activitiesInfo.length)}**`,
+        postDescription,
+    ];
 
     _.each(activitiesInfo, (mpi, i) => {
-        embed.addFields(
-            { name: '\u200B', value: `${SEPARATOR} ${i + 1} ${SEPARATOR}` },
-            { name: '**Activity:**', value: `${mpi.title} _(posted ${mpi.relativeCreatedAt})_` }
-        );
-        embed.addFields(
-            { name: '**When:**', value: mpi.when || 'unknown', inline: true },
-            { name: '**Channel:**', value: mpi.channel, inline: true },
-            { name: '**Commander:**', value: mpi.commander, inline: true }
+        messageContentArr.push(
+            `──── 〔${i + 1}〕────`,
+            `**${mpi.title}** _(posted ${mpi.relativeCreatedAt})_`,
+            `> **When:** ${mpi.when || 'unknown'}`,
+            `> **Channel:** ${mpi.channel}`,
+            `> **Commander:** ${mpi.commander}\n`,
         );
     });
 
-    const existingMasterPost = await getExistingMasterPost(channel);
+    messageContentArr.push(postFooter);
 
+    const existingMasterPost = await getExistingMasterPost(channel, header);
+
+    const message = messageContentArr.join('\n');
+    console.log(message.length);
     if (existingMasterPost) {
-        existingMasterPost.edit(embed);
+        return existingMasterPost.edit(message);
     } else {
-        channel.send(embed);
+        const newMasterPost = await channel.send(header);
+        return newMasterPost.edit(message);
     }
 };
 
