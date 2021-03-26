@@ -7,7 +7,7 @@ const fs = require('fs').promises;
 
 const config = require('./config');
 const { batchPromiseAll } = require('./utils');
-const { sendPost } = require('./postManager');
+const { sendSummaryPosts } = require('./postManager');
 
 const client = new Discord.Client();
 
@@ -46,21 +46,21 @@ const initSendPostSchedules = async () => {
     const channelsWithBot = _.compact(existingChannelsWithInstalledBot);
 
     _.each(channelsWithBot, channel => {
-        const job = scheduleSendPostJobs(channel);
+        const job = scheduleSendSummaryPostsJobs(channel);
 
         scheduledJobsMap[channel.id] = job;
     });
 }
 
-const scheduleSendPostJobs = (channel) => {
-    console.log(`sendPost job scheduled for ${channel.name} at ${new Date()}`);
+const scheduleSendSummaryPostsJobs = (channel) => {
+    console.log(`sendSummaryPosts job scheduled for ${channel.name} at ${new Date()}`);
     const job = schedule.scheduleJob('*/1 * * * *', (fireDate) => {
-        console.log('executing sendPost job at ', fireDate);
-        sendPost(channel);
+        console.log('executing sendSummaryPosts job at ', fireDate);
+        sendSummaryPosts(channel);
     });
 
     // fire once after scheduling
-    sendPost(channel);
+    sendSummaryPosts(channel);
 
     return job;
 };

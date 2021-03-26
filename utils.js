@@ -13,7 +13,7 @@ async function batchPromiseAll(items, callbackFn, groupSize = 5, delayMs = 1000)
     const results = [];
     let i = 0;
     for (let chunkItems of chunks) {
-        const chunkResults = await Promise.all(_.map(chunkItems, item => callbackFn(item)));
+        const chunkResults = await Promise.all(_.map(chunkItems, (item, i) => callbackFn(item, i)));
         if (_.some(chunkResults)) {
             results.push(chunkResults);
         }
@@ -28,5 +28,6 @@ async function batchPromiseAll(items, callbackFn, groupSize = 5, delayMs = 1000)
 }
 
 module.exports = {
-    batchPromiseAll
+    batchPromiseAll,
+    wait,
 };

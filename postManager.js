@@ -14,63 +14,102 @@ dayjs.extend(timezone);
 dayjs.extend(localizedFormat);
 dayjs.extend(relativeTime);
 
-const { batchPromiseAll } = require('./utils');
+const { batchPromiseAll, wait } = require('./utils');
 
+const ACTIVITIES_PER_POST = 6;
+const CHANNEL_NAME_PATTERN = '-planner-';
 const DATETIME_FORMAT = 'ddd, MMM D, YYYY HH:mm';
+const COMMANDER_EMOJI = '<:PeepoEducation:481585565674766336>';
 
-const getExistingMasterPost = async (channel, masterPostDeterminer = '') => {
+const getExistingMasterPosts = async (channel, masterPostDeterminer = '') => {
     const messages = await channel.messages.fetch();
 
     const client = channel.client;
-    const masterPost = _.find(
-        messages.array(),
-        (m) =>
+    const masterPosts = _(messages.array())
+        .filter((m) =>
             m.author.id.toString() === client.user.id.toString() &&
             (!_.isEmpty(m.embeds) || (masterPostDeterminer && m.content.includes(masterPostDeterminer)))
-    );
+        )
+        .sortBy(m => m.createdAt)
+        .value();
 
-    return masterPost;
+    return masterPosts;
 };
 
-const sendPost = async (channel) => {
-    const activitiesInfo = await getAggregatedPostsInfo(channel.guild);
+const getMessageContainers = async (channel, count, existingMessageContainers = []) => {
+    const messageContainers = await batchPromiseAll(_.range(0, count), async i => {
+        const existingMasterPost = existingMessageContainers[i];
+        if (existingMasterPost) {
+            return existingMasterPost;
+        } else {
+            const newMasterPost = await channel.send('.');
+            return newMasterPost;
+        }
+    }, 5, 1000);
+
+    // ensure messages are returned oldest to newest - the same way order the posts should be updated
+    const sortedMessageContainers = _.sortBy(messageContainers, m => m.createdAt);
+    return sortedMessageContainers;
+}
+
+const sendSummaryPosts = async (channel) => {
+    const activitiesInfo = await getParsedPostsInfo(channel.guild);
 
     const header = '**__Bounty board__**';
     const description =
-        '*Check out all ongoing raids and activities organized by our fine commanders here!* :point_down:';
+        '*Check out all ongoing raids and activities organized by our fine commanders here!* :point_down:\n';
     const emptyDescription =
         '*Uh oh, looks like there are no planned raids at this time. Check back later!*';
-    const postDescription = _.some(activitiesInfo) ? description : emptyDescription;
 
     const postFooterPrefix = 'Last updated •';
     const postFooter = `*${postFooterPrefix} ${dayjs.tz(dayjs(), 'Europe/Paris').format(DATETIME_FORMAT)} CET/CEST*`;
 
-    const messageContentArr = [
-        `${header} - **${activitiesInfo.length} ${pluralize('activity', activitiesInfo.length)}**`,
-        postDescription,
-    ];
+    const activityInfoChunks = _.chunk(activitiesInfo, ACTIVITIES_PER_POST);
+    const activityInfoChunksCount = activityInfoChunks.length;
 
-    _.each(activitiesInfo, (mpi, i) => {
-        messageContentArr.push(
-            `──── 〔${i + 1}〕────`,
-            `**${mpi.title}** _(posted ${mpi.relativeCreatedAt})_`,
-            `> **When:** ${mpi.when || 'unknown'}`,
-            `> **Channel:** ${mpi.channel}`,
-            `> **Commander:** ${mpi.commander}\n`,
-        );
+    const messageContents = _.map(activityInfoChunks, (activitiesInfo, chunkIndex) => {
+        const postDescription = _.some(activitiesInfo) ? description : emptyDescription;
+        const headerBountyBoardCounterHeader = activityInfoChunksCount !== 1 ? `(${chunkIndex + 1} of ${activityInfoChunksCount}) ` : '';
+        const messageContentArr = [
+            `${header} ${headerBountyBoardCounterHeader}- **${activitiesInfo.length} ${pluralize('activity', activitiesInfo.length)}**`,
+            postDescription,
+        ];
+
+        _.each(activitiesInfo, (mpi, i) => {
+            messageContentArr.push(
+                `──── 〔${i + 1}〕────`,
+                `**${mpi.title}** _(posted ${mpi.relativeCreatedAt})_`,
+                `> **:calendar: When:** ${mpi.when || 'unknown'}`,
+                `> **:hash: Channel:** ${mpi.channel}`,
+                `> **${COMMANDER_EMOJI} Commander:** ${mpi.commander}\n`,
+            );
+        });
+
+        messageContentArr.push(postFooter);
+
+        const message = messageContentArr.join('\n');
+        return message;
     });
 
-    messageContentArr.push(postFooter);
+    const existingMasterPosts = await getExistingMasterPosts(channel, header);
+    const messageContainers = await getMessageContainers(channel, activityInfoChunksCount, existingMasterPosts);
 
-    const existingMasterPost = await getExistingMasterPost(channel, header);
+    // edit the content of all messages for as many activityInfoChunksCount there are
+    await batchPromiseAll(messageContents, async (messageContent, i) => {
+        const masterPost = messageContainers[i];
+        return masterPost.edit(messageContent);
+    });
 
-    const message = messageContentArr.join('\n');
-    console.log(message.length);
-    if (existingMasterPost) {
-        return existingMasterPost.edit(message);
-    } else {
-        const newMasterPost = await channel.send(header);
-        return newMasterPost.edit(message);
+    // find out if there are any excess messages which don't need to show any activities, because there are enough messages displaying activities
+    // and empty their content 
+    const messageContainersIds = _.map(messageContainers, 'id');
+    const unutilizedMasterPosts = _.reject(existingMasterPosts, m => _.includes(messageContainersIds, m.id));
+
+    if (_.some(unutilizedMasterPosts)) {
+        await batchPromiseAll(unutilizedMasterPosts, async masterPost => {
+            const messageContent = [`${header} (inactive)\n`, postFooter].join('\n');
+            return masterPost.edit(messageContent);
+        });
     }
 };
 
@@ -89,14 +128,14 @@ const getLastMessageFromChannel = async (channel, query = {}) => {
     return mainPostMessage;
 };
 
-const getAggregatedPostsInfo = async (guild) => {
+const getParsedPostsInfo = async (guild, channelNamePattern = CHANNEL_NAME_PATTERN) => {
     const guildChannels = guild.channels.cache;
     const plannerChannels = _.filter(
         guildChannels.array(),
         (channel) =>
             channel.type === 'text' &&
             !channel.deleted &&
-            channel.name.toLowerCase().includes('-planner-') &&
+            channel.name.toLowerCase().includes(channelNamePattern) &&
             !!channel.lastMessageID
     );
 
@@ -140,8 +179,8 @@ const getAggregatedPostsInfo = async (guild) => {
     return mainPostsInfo;
 };
 
-const trimMarkdownFormatting = (str = '') => _.trimEnd(str, '*_~');
+const trimMarkdownFormatting = (str = '') => str.replace(/[*_~]/g, '');
 
 module.exports = {
-    sendPost,
+    sendSummaryPosts,
 };
