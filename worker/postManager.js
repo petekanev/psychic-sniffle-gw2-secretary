@@ -14,12 +14,13 @@ dayjs.extend(timezone);
 dayjs.extend(localizedFormat);
 dayjs.extend(relativeTime);
 
-const { batchPromiseAll, wait } = require('./utils');
+const { batchPromiseAll, wait } = require('../utils');
 
 const ACTIVITIES_PER_POST = 6;
 const CHANNEL_NAME_PATTERN = '-planner-';
 const DATETIME_FORMAT = 'ddd, MMM D, YYYY HH:mm';
-const COMMANDER_EMOJI = '<:PeepoEducation:481585565674766336>';
+const COMMANDER_EMOJI = '<:PeepoEducation:481585565674766336>'; // zZ
+const COMMANDER_TAG_EMOJI = '<:BlueTag:825327515957854219>'; // bot dev server
 
 const getExistingMasterPosts = async (channel, masterPostDeterminer = '') => {
     const messages = await channel.messages.fetch();
@@ -81,7 +82,7 @@ const sendSummaryPosts = async (channel) => {
                 `**${mpi.title}** _(posted ${mpi.relativeCreatedAt})_`,
                 `> **:calendar: When:** ${mpi.when || 'unknown'}`,
                 `> **:hash: Channel:** ${mpi.channel}`,
-                `> **${COMMANDER_EMOJI} Commander:** ${mpi.commander}\n`,
+                `> **${COMMANDER_TAG_EMOJI} Commander:** ${mpi.commander}\n`,
             );
         });
 

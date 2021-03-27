@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "setup": "cp data/db-template.json data/db.json",
-    "start": "node index.js",
-    "scheduler": "node scheduler.js"
+    "api": "node index.js",
+    "worker": "node worker/worker.js"
   },
   "author": "Peter Kanev",
   "license": "ISC",

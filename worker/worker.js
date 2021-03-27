@@ -5,8 +5,8 @@ const _ = require('lodash');
 
 const fs = require('fs').promises;
 
-const config = require('./config');
-const { batchPromiseAll } = require('./utils');
+const config = require('../config');
+const { batchPromiseAll } = require('../utils');
 const { sendSummaryPosts } = require('./postManager');
 
 const client = new Discord.Client();
