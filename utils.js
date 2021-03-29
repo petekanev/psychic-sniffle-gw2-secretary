@@ -27,7 +27,22 @@ async function batchPromiseAll(items, callbackFn, groupSize = 5, delayMs = 1000)
     return _.flatten(results);
 }
 
+Date.prototype.stdTimezoneOffset = function () {
+    var jan = new Date(this.getFullYear(), 0, 1);
+    var jul = new Date(this.getFullYear(), 6, 1);
+    return Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+}
+
+Date.prototype.isDstObserved = function () {
+    return this.getTimezoneOffset() < this.stdTimezoneOffset();
+}
+
+function isDST(date = new Date()) {
+    return date.isDstObserved();
+}
+
 module.exports = {
     batchPromiseAll,
     wait,
+    isDST
 };

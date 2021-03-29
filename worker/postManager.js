@@ -14,12 +14,15 @@ dayjs.extend(timezone);
 dayjs.extend(localizedFormat);
 dayjs.extend(relativeTime);
 
-const { batchPromiseAll, wait } = require('../utils');
+const { batchPromiseAll, isDST } = require('../utils');
 
-const ACTIVITIES_PER_POST = 6;
+const ACTIVITIES_PER_POST = 5;
 const CHANNEL_NAME_PATTERN = '-planner-';
-const DATETIME_FORMAT = 'ddd, MMM D, YYYY HH:mm';
-const COMMANDER_EMOJI = '<:PeepoEducation:481585565674766336>'; // zZ
+
+const centralEuropeanTimezone = isDST() ? 'CEST' : 'CET';
+const HOUR_FORMAT = `HH:mm ${centralEuropeanTimezone}`;
+const DATETIME_FORMAT = `ddd, MMM D, YYYY ${HOUR_FORMAT}`;
+
 const COMMANDER_TAG_EMOJI = '<:BlueTag:825327515957854219>'; // bot dev server
 
 const getExistingMasterPosts = async (channel, masterPostDeterminer = '') => {
@@ -56,14 +59,20 @@ const getMessageContainers = async (channel, count, existingMessageContainers = 
 const sendSummaryPosts = async (channel) => {
     const activitiesInfo = await getParsedPostsInfo(channel.guild);
 
+    const currentTimeDayJs = dayjs.tz(dayjs(), 'Europe/Paris');
+
+    const timeHeader = '┎┈┈┈┈┈┈┈┈┈┒\n' +
+        ` Current Time **${currentTimeDayJs.format(HOUR_FORMAT)}**\n` +
+        '┖┈┈┈┈┈┈┈┈┈┚';
     const header = '**__Bounty board__**';
     const description =
         '*Check out all ongoing raids and activities organized by our fine commanders here!* :point_down:\n';
     const emptyDescription =
         '*Uh oh, looks like there are no planned raids at this time. Check back later!*';
 
+
     const postFooterPrefix = 'Last updated •';
-    const postFooter = `*${postFooterPrefix} ${dayjs.tz(dayjs(), 'Europe/Paris').format(DATETIME_FORMAT)} CET/CEST*`;
+    const postFooter = `*${postFooterPrefix} ${currentTimeDayJs.format(DATETIME_FORMAT)}*`;
 
     const activityInfoChunks = _.chunk(activitiesInfo, ACTIVITIES_PER_POST);
     const activityInfoChunksCount = activityInfoChunks.length;
@@ -72,6 +81,7 @@ const sendSummaryPosts = async (channel) => {
         const postDescription = _.some(activitiesInfo) ? description : emptyDescription;
         const headerBountyBoardCounterHeader = activityInfoChunksCount !== 1 ? `(${chunkIndex + 1} of ${activityInfoChunksCount}) ` : '';
         const messageContentArr = [
+            timeHeader,
             `${header} ${headerBountyBoardCounterHeader}- **${activitiesInfo.length} ${pluralize('activity', activitiesInfo.length)}**`,
             postDescription,
         ];
