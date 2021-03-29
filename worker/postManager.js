@@ -19,7 +19,7 @@ const { batchPromiseAll, isDST } = require('../utils');
 const ACTIVITIES_PER_POST = 5;
 const CHANNEL_NAME_PATTERN = '-planner-';
 
-const centralEuropeanTimezone = isDST() ? 'CEST' : 'CET';
+const centralEuropeanTimezone = 'CEST'; //isDST() ? 'CEST' : 'CET';
 const HOUR_FORMAT = `HH:mm ${centralEuropeanTimezone}`;
 const DATETIME_FORMAT = `ddd, MMM D, YYYY ${HOUR_FORMAT}`;
 
