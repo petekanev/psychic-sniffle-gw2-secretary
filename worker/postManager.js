@@ -14,7 +14,7 @@ dayjs.extend(timezone);
 dayjs.extend(localizedFormat);
 dayjs.extend(relativeTime);
 
-const { batchPromiseAll, isDST } = require('../utils');
+const { batchPromiseAll, isDST, reverseString } = require('../utils');
 
 const ACTIVITIES_PER_POST = 5;
 const CHANNEL_NAME_PATTERN = '-planner-';
@@ -45,7 +45,7 @@ const getExistingMasterPosts = async (channel, masterPostDeterminer = '') => {
     const masterPosts = _(messages.array())
         .filter((m) =>
             m.author.id.toString() === client.user.id.toString() &&
-            (!_.isEmpty(m.embeds) || (masterPostDeterminer && m.content.includes(masterPostDeterminer)))
+            (!_.isEmpty(m.embeds) || (masterPostDeterminer && m.content.includes(masterPostDeterminer) || m.content.includes(reverseString(masterPostDeterminer))))
         )
         .sortBy(m => m.createdAt)
         .value();
@@ -75,7 +75,7 @@ const sendSummaryPosts = async (channel) => {
     const currentTimeDayJs = dayjs.tz(dayjs(), 'Europe/Paris');
 
     const timeHeader = '┎┈┈┈┈┈┈┈┈┈┒\n' +
-        ` Current Time **${currentTimeDayJs.format(getDateTimeFormat(DateTimeFormats.time))}**\n` +
+        `Current Time  **${currentTimeDayJs.format(getDateTimeFormat(DateTimeFormats.time))}**\n` +
         '┖┈┈┈┈┈┈┈┈┈┚';
     const header = '**__Bounty board__**';
     const description =

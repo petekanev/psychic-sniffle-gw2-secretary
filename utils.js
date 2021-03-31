@@ -43,8 +43,13 @@ function isDST(date = new Date()) {
     // return date.isDstObserved();
 }
 
+function reverseString(str = '') {
+    return _.reverse(Array.from(str)).join('').replace(/\)/g, '[').replace(/\(/g, ')').replace(/\[/g, '(');
+}
+
 module.exports = {
     batchPromiseAll,
     wait,
-    isDST
+    isDST,
+    reverseString
 };
