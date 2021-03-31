@@ -19,9 +19,22 @@ const { batchPromiseAll, isDST } = require('../utils');
 const ACTIVITIES_PER_POST = 5;
 const CHANNEL_NAME_PATTERN = '-planner-';
 
-const centralEuropeanTimezone = 'CEST'; //isDST() ? 'CEST' : 'CET';
-const HOUR_FORMAT = `HH:mm ${centralEuropeanTimezone}`;
-const DATETIME_FORMAT = `ddd, MMM D, YYYY ${HOUR_FORMAT}`;
+const DateTimeFormats = {
+    date: 'date',
+    time: 'time'
+};
+
+const getDateTimeFormat = (type = 'date') => {
+    const centralEuropeanTimezone = isDST() ? 'CEST' : 'CET';
+    const HOUR_FORMAT = `HH:mm ${centralEuropeanTimezone}`;
+    const DATETIME_FORMAT = `ddd, MMM D, YYYY ${HOUR_FORMAT}`;
+
+    if (type === DateTimeFormats.date) {
+        return DATETIME_FORMAT;
+    } else if (type === DateTimeFormats.time){
+        return HOUR_FORMAT;
+    }
+}
 
 const COMMANDER_TAG_EMOJI = '<:BlueTag:825327515957854219>'; // bot dev server
 
@@ -62,7 +75,7 @@ const sendSummaryPosts = async (channel) => {
     const currentTimeDayJs = dayjs.tz(dayjs(), 'Europe/Paris');
 
     const timeHeader = '┎┈┈┈┈┈┈┈┈┈┒\n' +
-        ` Current Time **${currentTimeDayJs.format(HOUR_FORMAT)}**\n` +
+        ` Current Time **${currentTimeDayJs.format(getDateTimeFormat(DateTimeFormats.time))}**\n` +
         '┖┈┈┈┈┈┈┈┈┈┚';
     const header = '**__Bounty board__**';
     const description =
@@ -70,9 +83,8 @@ const sendSummaryPosts = async (channel) => {
     const emptyDescription =
         '*Uh oh, looks like there are no planned raids at this time. Check back later!*';
 
-
     const postFooterPrefix = 'Last updated •';
-    const postFooter = `*${postFooterPrefix} ${currentTimeDayJs.format(DATETIME_FORMAT)}*`;
+    const postFooter = `*${postFooterPrefix} ${currentTimeDayJs.format(getDateTimeFormat(DateTimeFormats.date))}*`;
 
     const activityInfoChunks = _.chunk(activitiesInfo, ACTIVITIES_PER_POST);
     const activityInfoChunksCount = activityInfoChunks.length;
