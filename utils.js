@@ -39,8 +39,8 @@ Date.prototype.isDstObserved = function () {
 
 function isDST(date = new Date()) {
     // TODO: fix, yes I KNOW!
-    return true;
-    // return date.isDstObserved();
+    // return true;
+    return date.isDstObserved();
 }
 
 function reverseString(str = '') {
